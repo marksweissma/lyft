@@ -1,0 +1,42 @@
+data:
+  file_path: './data/train.csv'
+  sample: 50000
+  splits:
+    train: ['2015-02-01', '2015-09-01', 'start_timestamp']
+    test: ['2015-09-01', '2015-11-01', 'start_timestamp']
+
+
+estimator:
+  pipeline_definition:
+    - [schema, {'selection': {exclude: [row_id]}}]
+    - [timefeaturesprojectunitcircle, {columns: ['start_timestamp'], deltas:[]}]
+    #- [kmeanshack, {n_clusters: 10}]
+    - [distance, {  rect_kwargs: {'lat': {'bin_count': 15}, 'lng': {'bin_count': 15}}}]
+    - [jamessteinencoder, {}]
+    - [xgbregressor, {objective: 'reg:squarederror', learning_rate: 5e-2, n_estimators: 2000, max_depth: 6}]
+
+training:
+  variant: xgb 
+  target: duration 
+  write_location: 'model_xgb.pkl'
+  cutoff: 6000
+  xgb_fit_params:
+    early_stopping_rounds: 20
+    eval_metric: ['mphe', 'rmse']
+  eval_split_kwargs:
+    iterations: 1
+    update_count: 50000
+    split_kwargs:
+      random_state: 42
+      train_size: .7
+    remainder_kwargs:
+      random_state: 42
+      train_size: .2
+
+evaluation:
+  write_location: 'evaluation_xgb.pkl'
+  target: duration
+
+result:
+  read_location: 'data/test.csv'
+  write_location: 'result/test.csv'
